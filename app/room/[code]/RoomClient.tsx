@@ -6,7 +6,7 @@ import type { PublicRoom } from "@/lib/types";
 
 type View = {
   public: PublicRoom;
-  you: { id: string; role: "impostor" | "civilian" | null; word: string | null };
+  you: { id: string; role: "impostor" | "civilian" | null; word: string | null; category: string | null };
 };
 
 const TURN_SECONDS = 60;
@@ -275,33 +275,22 @@ function Playing({
   const isMyTurn = current?.id === playerId;
   const elapsed = r.turnStartedAt ? Math.floor((now - r.turnStartedAt) / 1000) : 0;
   const remaining = Math.max(0, TURN_SECONDS - elapsed);
-  const autoPassedRef = useRef<{ round: number; idx: number } | null>(null);
 
-  const submit = async (passed: boolean) => {
+  const submit = async () => {
     if (busy) return;
+    if (word.trim().length === 0) return;
     setBusy(true);
     try {
       await fetch(`/api/room/${code}/turn`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ playerId, word: passed ? null : word, passed }),
+        body: JSON.stringify({ playerId, word }),
       });
       setWord("");
     } finally {
       setBusy(false);
     }
   };
-
-  useEffect(() => {
-    if (!isMyTurn) return;
-    if (remaining > 0) return;
-    const key = { round: r.currentRound, idx: r.currentTurnIdx };
-    const prev = autoPassedRef.current;
-    if (prev && prev.round === key.round && prev.idx === key.idx) return;
-    autoPassedRef.current = key;
-    submit(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMyTurn, remaining, r.currentRound, r.currentTurnIdx]);
 
   const timerColor =
     remaining > 30 ? "bg-[var(--color-mint)]" : remaining > 10 ? "bg-[var(--color-yellow)]" : "bg-[var(--color-cherry)]";
@@ -319,7 +308,13 @@ function Playing({
           </span>
         </header>
 
-        <RoleCard role={you.role} word={you.word} revealed={revealed} onReveal={() => setRevealed(true)} />
+        <RoleCard
+          role={you.role}
+          word={you.word}
+          category={you.category}
+          revealed={revealed}
+          onReveal={() => setRevealed(true)}
+        />
 
         <div className="sticker sticker-sky p-4 pop-in delay-1 tilt-l">
           <p className="text-xs font-bold opacity-70 uppercase tracking-widest">🎤 turno di</p>
@@ -335,26 +330,19 @@ function Playing({
             <input
               value={word}
               onChange={(e) => setWord(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
               placeholder="dì una parola..."
               autoFocus
+              maxLength={40}
               className="input-fun w-full text-center text-xl"
             />
-            <div className="flex gap-2">
-              <button
-                onClick={() => submit(false)}
-                disabled={busy || word.trim().length === 0}
-                className="btn-fun btn-success flex-1 py-3 text-lg"
-              >
-                ✅ Invia
-              </button>
-              <button
-                onClick={() => submit(true)}
-                disabled={busy}
-                className="btn-fun btn-secondary flex-1 py-3 text-lg"
-              >
-                ⏭️ Passa
-              </button>
-            </div>
+            <button
+              onClick={submit}
+              disabled={busy || word.trim().length === 0}
+              className="btn-fun btn-primary w-full py-3 text-lg"
+            >
+              ✅ Invia
+            </button>
           </div>
         ) : (
           <div className="sticker sticker-lilac p-5 text-center pop-in delay-2 tilt-l">
@@ -371,11 +359,13 @@ function Playing({
 function RoleCard({
   role,
   word,
+  category,
   revealed,
   onReveal,
 }: {
   role: "impostor" | "civilian" | null;
   word: string | null;
+  category: string | null;
   revealed: boolean;
   onReveal: () => void;
 }) {
@@ -391,10 +381,14 @@ function RoleCard({
   }
   if (role === "impostor") {
     return (
-      <div className="sticker sticker-cherry p-7 text-center pop-in tilt-l">
+      <div className="sticker sticker-cherry p-7 text-center pop-in tilt-l space-y-3">
         <p className="text-5xl">😈</p>
-        <p className="brush text-3xl mt-1">sei l&apos;impostore</p>
-        <p className="font-bold text-base mt-2">bluffa e non farti scoprire</p>
+        <p className="brush text-3xl">sei l&apos;impostore</p>
+        <div className="bg-white/95 text-[var(--color-ink)] border-[3px] border-[var(--color-ink)] rounded-2xl px-4 py-3 shadow-[3px_3px_0_var(--color-ink)]">
+          <p className="text-xs font-black uppercase tracking-[0.25em] opacity-70">categoria</p>
+          <p className="brush text-4xl mt-1 leading-none">{category}</p>
+        </div>
+        <p className="font-bold text-sm">bluffa, non farti scoprire</p>
       </div>
     );
   }
@@ -417,12 +411,10 @@ function TurnsList({ r }: { r: PublicRoom }) {
           return (
             <li
               key={i}
-              className="flex justify-between items-baseline border-b-2 border-dashed border-[var(--color-ink)]/20 pb-1"
+              className="flex justify-between items-baseline gap-3 border-b-2 border-dashed border-[var(--color-ink)]/20 pb-1"
             >
               <span className="text-sm font-bold opacity-60">{p?.name}</span>
-              <span className={t.passed ? "italic opacity-50 text-sm" : "brush text-2xl"}>
-                {t.passed ? "(passato)" : t.word}
-              </span>
+              <span className="brush text-2xl text-right">{t.word}</span>
             </li>
           );
         })}
@@ -512,6 +504,8 @@ function Result({ r, playerId, onHome }: { r: PublicRoom; playerId: string; onHo
 
         <div className="sticker sticker-yellow p-5 space-y-3 pop-in delay-1 tilt-l">
           <Row label="📖 Parola" value={r.result.word} brush />
+          <div className="dashed-line" />
+          <Row label="🏷️ Categoria" value={r.result.category} />
           <div className="dashed-line" />
           <Row label={impostorNames.length > 1 ? "😈 Impostori" : "😈 Impostore"} value={impostorNames.join(", ")} />
           <div className="dashed-line" />

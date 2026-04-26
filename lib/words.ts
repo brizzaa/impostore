@@ -1,6 +1,13 @@
-import words from "@/public/words.json";
+import data from "@/public/words.json";
 
-export function pickWord(): string {
-  const list = words as string[];
-  return list[Math.floor(Math.random() * list.length)];
+export type WordPick = { word: string; category: string };
+
+const dict = data as Record<string, string[]>;
+
+export function pickWord(): WordPick {
+  const categories = Object.keys(dict);
+  const cat = categories[Math.floor(Math.random() * categories.length)];
+  const list = dict[cat];
+  const word = list[Math.floor(Math.random() * list.length)];
+  return { word, category: cat };
 }

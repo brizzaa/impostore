@@ -7,11 +7,12 @@ export function startGame(room: Room): Room {
   if (room.impostorCount < 1 || room.impostorCount >= room.players.length)
     throw new Error("invalid_impostor_count");
 
-  const word = pickWord();
+  const pick = pickWord();
   const shuffled = [...room.players].sort(() => Math.random() - 0.5);
   const impostorIds = shuffled.slice(0, room.impostorCount).map((p) => p.id);
 
-  room.word = word;
+  room.word = pick.word;
+  room.category = pick.category;
   room.impostorIds = impostorIds;
   room.phase = "playing";
   room.currentRound = 1;
@@ -23,13 +24,16 @@ export function startGame(room: Room): Room {
   return bump(room);
 }
 
-export function submitTurn(room: Room, playerId: string, word: string | null, passed: boolean): Room {
+export function submitTurn(room: Room, playerId: string, word: string): Room {
   if (room.phase !== "playing") throw new Error("not_playing");
   const current = room.players[room.currentTurnIdx];
   if (!current || current.id !== playerId) throw new Error("not_your_turn");
 
-  const turn: Turn = { playerId, word: passed ? null : (word ?? "").trim().toLowerCase(), passed };
-  if (!passed && (!turn.word || turn.word.length === 0)) throw new Error("empty_word");
+  const cleaned = (word ?? "").trim().toLowerCase();
+  if (cleaned.length === 0) throw new Error("empty_word");
+  if (cleaned.length > 40) throw new Error("word_too_long");
+
+  const turn: Turn = { playerId, word: cleaned };
   room.turns.push(turn);
 
   const nextIdx = room.currentTurnIdx + 1;
@@ -77,6 +81,7 @@ function finalize(room: Room): void {
   room.result = {
     impostorIds: room.impostorIds,
     word: room.word!,
+    category: room.category!,
     votedOutId,
     impostorWon,
   };

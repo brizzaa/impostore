@@ -8,8 +8,7 @@ export interface Player {
 
 export interface Turn {
   playerId: string;
-  word: string | null;
-  passed: boolean;
+  word: string;
 }
 
 export interface Room {
@@ -18,9 +17,9 @@ export interface Room {
   phase: Phase;
   players: Player[];
   word: string | null;
+  category: string | null;
   impostorIds: string[];
   impostorCount: number;
-  rounds: number;
   totalRounds: number;
   currentRound: number;
   currentTurnIdx: number;
@@ -30,6 +29,7 @@ export interface Room {
   result: {
     impostorIds: string[];
     word: string;
+    category: string;
     votedOutId: string | null;
     impostorWon: boolean;
   } | null;
