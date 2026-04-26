@@ -1,4 +1,4 @@
-export type Phase = "lobby" | "playing" | "voting" | "result";
+export type Phase = "lobby" | "playing" | "voting" | "guessing" | "result";
 
 export interface Player {
   id: string;
@@ -26,12 +26,16 @@ export interface Room {
   turns: Turn[];
   turnStartedAt: number | null;
   votes: Record<string, string>;
+  guessingPlayerId: string | null;
   result: {
     impostorIds: string[];
     word: string;
     category: string;
     votedOutId: string | null;
+    votes: Record<string, string>;
     impostorWon: boolean;
+    impostorGuess: string | null;
+    impostorGuessCorrect: boolean | null;
   } | null;
   version: number;
   createdAt: number;
@@ -49,6 +53,7 @@ export interface PublicRoom {
   turns: Turn[];
   turnStartedAt: number | null;
   votes: Record<string, string>;
+  guessingPlayerId: string | null;
   result: Room["result"];
   version: number;
 }
@@ -66,6 +71,7 @@ export function toPublic(r: Room): PublicRoom {
     turns: r.turns,
     turnStartedAt: r.turnStartedAt,
     votes: r.votes,
+    guessingPlayerId: r.guessingPlayerId ?? null,
     result: r.result,
     version: r.version,
   };

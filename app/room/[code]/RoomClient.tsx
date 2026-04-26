@@ -6,7 +6,21 @@ import type { PublicRoom } from "@/lib/types";
 
 type View = {
   public: PublicRoom;
-  you: { id: string; role: "impostor" | "civilian" | null; word: string | null; category: string | null };
+  you: {
+    id: string;
+    role: "impostor" | "civilian" | null;
+    word: string | null;
+    category: string | null;
+    canGuess: boolean;
+  };
+};
+
+const ERROR_LABELS: Record<string, string> = {
+  word_already_used: "parola già detta!",
+  empty_word: "scrivi una parola",
+  word_too_long: "parola troppo lunga",
+  not_your_turn: "non è il tuo turno",
+  empty_guess: "scrivi la parola",
 };
 
 const TURN_SECONDS = 60;
@@ -119,6 +133,7 @@ export default function RoomClient({ code }: { code: string }) {
       />
     );
   if (r.phase === "voting") return <Voting r={r} code={code} playerId={playerId} />;
+  if (r.phase === "guessing") return <Guessing r={r} code={code} playerId={playerId} you={view.you} />;
   if (r.phase === "result") return <Result r={r} playerId={playerId} onHome={() => router.replace("/")} />;
   return null;
 }
@@ -271,6 +286,7 @@ function Playing({
 }) {
   const [word, setWord] = useState("");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const current = r.players[r.currentTurnIdx];
   const isMyTurn = current?.id === playerId;
   const elapsed = r.turnStartedAt ? Math.floor((now - r.turnStartedAt) / 1000) : 0;
@@ -280,13 +296,19 @@ function Playing({
     if (busy) return;
     if (word.trim().length === 0) return;
     setBusy(true);
+    setErr(null);
     try {
-      await fetch(`/api/room/${code}/turn`, {
+      const res = await fetch(`/api/room/${code}/turn`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ playerId, word }),
       });
-      setWord("");
+      if (!res.ok) {
+        const d = await res.json();
+        setErr(ERROR_LABELS[d.error] ?? d.error ?? "errore");
+      } else {
+        setWord("");
+      }
     } finally {
       setBusy(false);
     }
@@ -343,6 +365,7 @@ function Playing({
             >
               ✅ Invia
             </button>
+            {err && <div className="sticker sticker-cherry shake text-center py-2 px-3 font-bold text-sm">{err}</div>}
           </div>
         ) : (
           <div className="sticker sticker-lilac p-5 text-center pop-in delay-2 tilt-l">
@@ -483,48 +506,205 @@ function Voting({ r, code, playerId }: { r: PublicRoom; code: string; playerId: 
   );
 }
 
+function Guessing({
+  r,
+  code,
+  playerId,
+  you,
+}: {
+  r: PublicRoom;
+  code: string;
+  playerId: string;
+  you: View["you"];
+}) {
+  const [guess, setGuess] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const guessingPlayer = r.players.find((p) => p.id === r.guessingPlayerId);
+
+  const submit = async () => {
+    if (busy || guess.trim().length === 0) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/room/${code}/guess`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ playerId, guess }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setErr(ERROR_LABELS[d.error] ?? d.error ?? "errore");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen p-6 bg-paper overflow-hidden">
+      <div className="max-w-md mx-auto space-y-5 relative-z">
+        <header className="text-center pop-in">
+          <p className="text-5xl">😱</p>
+          <h2 className="text-outline-thick text-5xl font-black mt-2 -rotate-1">scoperto!</h2>
+          <p className="brush text-2xl mt-2 inline-block bg-[var(--color-pink)] text-white px-4 py-1 border-[3px] border-[var(--color-ink)] rounded-2xl rotate-2 shadow-[3px_3px_0_var(--color-ink)]">
+            ultima chance: indovina la parola
+          </p>
+        </header>
+
+        {you.canGuess ? (
+          <div className="sticker sticker-cherry sticker-taped p-5 pt-7 space-y-3 pop-in delay-1 tilt-r">
+            <p className="brush text-2xl text-center">tocca a te, impostore</p>
+            <p className="text-sm font-bold text-center opacity-90">indovina la parola e ribalta il risultato</p>
+            <div className="bg-white/95 text-[var(--color-ink)] border-[3px] border-[var(--color-ink)] rounded-2xl px-3 py-2 shadow-[3px_3px_0_var(--color-ink)] text-center">
+              <p className="text-xs font-black uppercase tracking-[0.25em] opacity-70">categoria</p>
+              <p className="brush text-3xl">{you.category}</p>
+            </div>
+            <input
+              value={guess}
+              onChange={(e) => setGuess(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              placeholder="la parola è..."
+              autoFocus
+              maxLength={40}
+              className="input-fun w-full text-center text-2xl"
+            />
+            <button
+              onClick={submit}
+              disabled={busy || guess.trim().length === 0}
+              className="btn-fun btn-primary w-full py-3 text-lg"
+            >
+              🎯 indovina
+            </button>
+            {err && <div className="sticker sticker-yellow shake text-center py-2 px-3 font-bold text-sm">{err}</div>}
+          </div>
+        ) : (
+          <div className="sticker sticker-lilac sticker-taped p-7 text-center pop-in delay-1 tilt-l">
+            <p className="brush text-3xl">{guessingPlayer?.name} sta indovinando...</p>
+            <p className="text-sm font-bold mt-2 opacity-70">se azzecca la parola, vince l&apos;impostore</p>
+          </div>
+        )}
+
+        <TurnsList r={r} />
+      </div>
+    </main>
+  );
+}
+
 function Result({ r, playerId, onHome }: { r: PublicRoom; playerId: string; onHome: () => void }) {
   if (!r.result) return null;
   const wasImpostor = r.result.impostorIds.includes(playerId);
   const youWon = wasImpostor === r.result.impostorWon;
   const impostorNames = r.players.filter((p) => r.result!.impostorIds.includes(p.id)).map((p) => p.name);
   const votedOut = r.players.find((p) => p.id === r.result!.votedOutId);
+  const guess = r.result.impostorGuess;
+  const guessCorrect = r.result.impostorGuessCorrect;
+  const tally: Record<string, string[]> = {};
+  for (const [voter, target] of Object.entries(r.result.votes ?? {})) {
+    if (!tally[target]) tally[target] = [];
+    const voterName = r.players.find((p) => p.id === voter)?.name ?? "?";
+    tally[target].push(voterName);
+  }
+  const sortedTargets = Object.entries(tally).sort((a, b) => b[1].length - a[1].length);
 
   return (
-    <main className="min-h-screen p-6 bg-paper flex items-center overflow-hidden">
-
-      <div className="max-w-md mx-auto w-full space-y-4 relative-z">
+    <main className="min-h-screen p-6 bg-paper overflow-hidden">
+      <div className="max-w-md mx-auto w-full space-y-4 relative-z py-6">
         <div className={`sticker ${youWon ? "sticker-mint" : "sticker-cherry"} sticker-taped p-8 pt-10 text-center pop-in tilt-r`}>
-          <p className="text-6xl">{youWon ? "🏆" : "💀"}</p>
-          <p className="brush text-3xl mt-2">{youWon ? "hai vinto!" : "hai perso!"}</p>
-          <p className="text-outline text-4xl font-black mt-3 leading-tight">
+          <p className="text-7xl">{youWon ? "🏆" : "💀"}</p>
+          <p className="brush text-4xl mt-2">{youWon ? "hai vinto!" : "hai perso!"}</p>
+          <p className="text-outline text-3xl font-black mt-3 leading-tight">
             {r.result.impostorWon ? "L'impostore vince" : "Il gruppo vince"}
           </p>
         </div>
 
         <div className="sticker sticker-yellow p-5 space-y-3 pop-in delay-1 tilt-l">
-          <Row label="📖 Parola" value={r.result.word} brush />
-          <div className="dashed-line" />
-          <Row label="🏷️ Categoria" value={r.result.category} />
-          <div className="dashed-line" />
-          <Row label={impostorNames.length > 1 ? "😈 Impostori" : "😈 Impostore"} value={impostorNames.join(", ")} />
-          <div className="dashed-line" />
-          <Row label="🗳️ Più votato" value={votedOut?.name ?? "Pareggio"} />
+          <p className="brush text-2xl">📖 la parola era</p>
+          <div className="text-center bg-white border-[3px] border-[var(--color-ink)] rounded-2xl py-4 shadow-[3px_3px_0_var(--color-ink)]">
+            <p className="brush text-5xl leading-none">{r.result.word}</p>
+            <p className="text-xs font-black uppercase tracking-[0.25em] opacity-60 mt-2">{r.result.category}</p>
+          </div>
         </div>
 
-        <button onClick={onHome} className="btn-fun btn-primary w-full py-4 text-xl wobble pop-in delay-2">
+        <div className="sticker sticker-pink p-5 space-y-2 pop-in delay-2 tilt-r">
+          <p className="brush text-2xl text-white">😈 {impostorNames.length > 1 ? "impostori" : "impostore"}</p>
+          <ul className="space-y-1">
+            {impostorNames.map((n) => (
+              <li
+                key={n}
+                className="bg-white text-[var(--color-ink)] border-[3px] border-[var(--color-ink)] rounded-xl px-3 py-2 brush text-2xl flex items-center justify-between"
+              >
+                <span>{n}</span>
+                {votedOut?.name === n && <span className="text-xs font-black bg-[var(--color-cherry)] text-white px-2 py-0.5 rounded-lg">votato</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {guess !== null && (
+          <div className={`sticker ${guessCorrect ? "sticker-mint" : "sticker-cherry"} p-5 pop-in delay-2 tilt-l`}>
+            <p className="brush text-2xl">🎯 ultimo tentativo</p>
+            <p className="text-sm font-bold opacity-80">l&apos;impostore ha provato</p>
+            <div className="mt-2 bg-white text-[var(--color-ink)] border-[3px] border-[var(--color-ink)] rounded-xl px-3 py-3 text-center shadow-[3px_3px_0_var(--color-ink)]">
+              <p className="brush text-4xl">{guess}</p>
+              <p className="text-xs font-black uppercase tracking-[0.2em] mt-1">
+                {guessCorrect ? "✅ giusto!" : "❌ sbagliato"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="sticker sticker-sky p-5 space-y-3 pop-in delay-3 tilt-r">
+          <p className="brush text-2xl">🗳️ voti</p>
+          {sortedTargets.length === 0 ? (
+            <p className="text-sm font-bold opacity-70">nessuno ha votato</p>
+          ) : (
+            <ul className="space-y-2">
+              {sortedTargets.map(([targetId, voters]) => {
+                const target = r.players.find((p) => p.id === targetId);
+                const isImpostor = r.result!.impostorIds.includes(targetId);
+                return (
+                  <li key={targetId} className="bg-white border-[3px] border-[var(--color-ink)] rounded-xl px-3 py-2">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="brush text-2xl flex items-center gap-2">
+                        {target?.name}
+                        {isImpostor && <span className="text-base">😈</span>}
+                      </span>
+                      <span className="text-xs font-black bg-[var(--color-yellow)] border-2 border-[var(--color-ink)] rounded-lg px-2 py-0.5">
+                        {voters.length} {voters.length === 1 ? "voto" : "voti"}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold opacity-70 mt-1">da: {voters.join(", ")}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="sticker p-4 pop-in delay-3 tilt-l">
+          <p className="brush text-2xl mb-2">💬 parole dette</p>
+          <ul className="space-y-1">
+            {r.turns.map((t, i) => {
+              const p = r.players.find((x) => x.id === t.playerId);
+              const isImpostor = r.result!.impostorIds.includes(t.playerId);
+              return (
+                <li key={i} className="flex justify-between items-baseline gap-3 border-b-2 border-dashed border-[var(--color-ink)]/20 pb-1">
+                  <span className="text-sm font-bold opacity-60 flex items-center gap-1">
+                    {p?.name}
+                    {isImpostor && <span>😈</span>}
+                  </span>
+                  <span className="brush text-2xl text-right">{t.word}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <button onClick={onHome} className="btn-fun btn-primary w-full py-4 text-xl wobble pop-in delay-3">
           🏠 ricomincia
         </button>
       </div>
     </main>
-  );
-}
-
-function Row({ label, value, brush }: { label: string; value: string; brush?: boolean }) {
-  return (
-    <div className="flex justify-between items-baseline gap-2">
-      <span className="text-xs font-black opacity-70 uppercase tracking-[0.2em]">{label}</span>
-      <span className={brush ? "brush text-3xl text-right" : "font-black text-right"}>{value}</span>
-    </div>
   );
 }

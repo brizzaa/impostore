@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     turns: [],
     turnStartedAt: null,
     votes: {},
+    guessingPlayerId: null,
     result: null,
     version: 1,
     createdAt: Date.now(),

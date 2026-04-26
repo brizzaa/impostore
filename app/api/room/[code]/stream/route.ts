@@ -16,6 +16,7 @@ function viewFor(room: Room, playerId: string) {
       role: inGame ? (isImpostor ? "impostor" : "civilian") : null,
       word: inGame && !isImpostor ? room.word : null,
       category: inGame && isImpostor ? room.category : null,
+      canGuess: room.phase === "guessing" && room.guessingPlayerId === playerId,
     },
   };
 }
