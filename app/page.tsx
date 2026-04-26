@@ -59,13 +59,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6 bg-paper overflow-hidden">
-      <span className="confetti confetti-1">🎭</span>
-      <span className="confetti confetti-2">🤫</span>
-      <span className="confetti confetti-3">🕵️</span>
-      <span className="confetti confetti-4">😈</span>
-      <span className="confetti confetti-5">⭐</span>
-      <span className="confetti confetti-6">💬</span>
-
       <div className="w-full max-w-sm space-y-6 relative-z">
         <header className="text-center pop-in">
           <p className="brush text-2xl text-[var(--color-pink)] -rotate-3 inline-block">il gioco di</p>

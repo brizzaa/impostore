@@ -1,9 +1,6 @@
 @import "tailwindcss";
 
-@theme inline {
-  --font-sans: "Comic Sans MS", "Comic Neue", var(--font-hand), "Chalkboard SE", "Marker Felt", cursive;
-  --font-hand: var(--font-hand);
-  --font-brush: var(--font-brush);
+:root {
   --color-ink: #1a1814;
   --color-paper: #fff8ee;
   --color-pink: #ff5d8f;
@@ -13,6 +10,10 @@
   --color-coral: #ff8c69;
   --color-lilac: #c4a8ff;
   --color-cherry: #ef4444;
+}
+
+@theme {
+  --font-sans: "Comic Sans MS", "Comic Neue", var(--font-hand), "Chalkboard SE", "Marker Felt", cursive;
 }
 
 html, body {

@@ -126,8 +126,6 @@ export default function RoomClient({ code }: { code: string }) {
 function Centered({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-paper text-center overflow-hidden">
-      <span className="confetti confetti-1">🎭</span>
-      <span className="confetti confetti-3">🕵️</span>
       <div className="relative-z flex flex-col items-center">{children}</div>
     </main>
   );
@@ -172,10 +170,6 @@ function Lobby({ r, code, isHost, playerId }: { r: PublicRoom; code: string; isH
 
   return (
     <main className="min-h-screen p-6 bg-paper overflow-hidden">
-      <span className="confetti confetti-1">🎉</span>
-      <span className="confetti confetti-2">⭐</span>
-      <span className="confetti confetti-4">🎭</span>
-      <span className="confetti confetti-5">🤫</span>
 
       <div className="max-w-md mx-auto space-y-5 relative-z">
         <header className="text-center pop-in">
@@ -314,8 +308,6 @@ function Playing({
 
   return (
     <main className="min-h-screen p-6 bg-paper overflow-hidden">
-      <span className="confetti confetti-2">🤫</span>
-      <span className="confetti confetti-5">💬</span>
 
       <div className="max-w-md mx-auto space-y-4 relative-z">
         <header className="flex items-center justify-between font-bold pop-in">
@@ -460,10 +452,6 @@ function Voting({ r, code, playerId }: { r: PublicRoom; code: string; playerId: 
 
   return (
     <main className="min-h-screen p-6 bg-paper overflow-hidden">
-      <span className="confetti confetti-1">🗳️</span>
-      <span className="confetti confetti-2">😱</span>
-      <span className="confetti confetti-4">🤔</span>
-      <span className="confetti confetti-6">👀</span>
 
       <div className="max-w-md mx-auto space-y-5 relative-z">
         <header className="text-center pop-in">
@@ -512,12 +500,6 @@ function Result({ r, playerId, onHome }: { r: PublicRoom; playerId: string; onHo
 
   return (
     <main className="min-h-screen p-6 bg-paper flex items-center overflow-hidden">
-      <span className="confetti confetti-1">🎉</span>
-      <span className="confetti confetti-2">🎊</span>
-      <span className="confetti confetti-3">⭐</span>
-      <span className="confetti confetti-4">🏆</span>
-      <span className="confetti confetti-5">✨</span>
-      <span className="confetti confetti-6">🎭</span>
 
       <div className="max-w-md mx-auto w-full space-y-4 relative-z">
         <div className={`sticker ${youWon ? "sticker-mint" : "sticker-cherry"} sticker-taped p-8 pt-10 text-center pop-in tilt-r`}>
